@@ -26,6 +26,7 @@ class WindowPanel(wx.Panel):
         self.t_gtm = wx.TextCtrl(self, size = (400, 23))
         self.t_scenario = wx.TextCtrl(self, size = (400, 23))
         self.t_mechanism = wx.TextCtrl(self, size = (400, 23))
+        self.t_step_count = wx.TextCtrl(self, size = (40, 23))
 
         # Buttons
         self.b_browse_config = wx.Button(self, label = '...', size = (20, 20))
@@ -46,8 +47,8 @@ class WindowPanel(wx.Panel):
         self.b_start = wx.Button(self, label = 'Run')
         self.b_start.Bind(wx.EVT_BUTTON, self.file_loader)
 
-        self.b_run = wx.Button(self, label = 'Step')
-        self.b_run.Bind(wx.EVT_BUTTON, self.Vx.vx_step)
+        self.b_step = wx.Button(self, label = 'Step')
+        self.b_step.Bind(wx.EVT_BUTTON, self.scene_step)
 
         # Place a ton of horizontal sizers within one expanding vertical sizer.
         hsizer1 = wx.BoxSizer(wx.HORIZONTAL)
@@ -56,6 +57,7 @@ class WindowPanel(wx.Panel):
         hsizer4 = wx.BoxSizer(wx.HORIZONTAL)
         hsizer5 = wx.BoxSizer(wx.HORIZONTAL)
         hsizer6 = wx.BoxSizer(wx.HORIZONTAL)
+        hsizer7 = wx.BoxSizer(wx.HORIZONTAL)
         vsizer = wx.BoxSizer(wx.VERTICAL)
         vsizer.Add(hsizer1, .1, wx.EXPAND)
         vsizer.Add(hsizer2, .1, wx.EXPAND)
@@ -63,6 +65,7 @@ class WindowPanel(wx.Panel):
         vsizer.Add(hsizer4, .1, wx.EXPAND)
         vsizer.Add(hsizer5, .1, wx.EXPAND)
         vsizer.Add(hsizer6, .1, wx.ALIGN_RIGHT)
+        vsizer.Add(hsizer7, .1, wx.ALIGN_RIGHT)
 
         # Position all objects within the panel.
         hsizer1.Add(self.l_config, 0, wx.ALIGN_CENTER|wx.ALL, 5)
@@ -85,8 +88,10 @@ class WindowPanel(wx.Panel):
         hsizer5.Add(self.b_browse_mechanism, 0, wx.ALIGN_CENTER|wx.ALL, 5)
         hsizer5.Add(self.t_mechanism, 0, wx.ALIGN_CENTER|wx.ALL, 5)
 
-        hsizer6.Add(self.b_start, 0, wx.ALIGN_RIGHT|wx.ALL, 5)
-        hsizer6.Add(self.b_run, 0, wx.ALIGN_RIGHT|wx.ALL, 5)
+        hsizer6.Add(self.b_step, 0, wx.ALIGN_CENTER|wx.ALL, 5)
+        hsizer6.Add(self.t_step_count, 0, wx.ALIGN_CENTER|wx.ALL, 5)
+
+        hsizer7.Add(self.b_start, 0, wx.ALIGN_CENTER|wx.ALL, 5)
         
         # Load vertical sizer and all horizontal sizers it contains.
         self.SetSizerAndFit(vsizer)
@@ -137,7 +142,7 @@ class WindowPanel(wx.Panel):
 
     def file_loader(self, event=None):
         '''Loads the scene into SimApp with selected files'''
-        
+
         if  self.t_config.GetValue() != None:
             serializer = VxSim.VxApplicationConfigSerializer()
             serializer.load(str(self.t_config.GetValue()))
@@ -149,62 +154,49 @@ class WindowPanel(wx.Panel):
 
         if self.t_scene.GetValue() != '':
             scene = self.Vx.sim_app.getSimulationFileManager().loadScene(
-                str(self.Vx.t_scene.GetValue()), 'ContentExtensionScene'
+                str(self.t_scene.GetValue()), 'ContentExtensionScene'
                 )
             self.Vx.sim_app.add(scene)
             self.Vx.scene = scene
 
-'''
-     # Light
-
-key = VxFactoryKey.createFromUuid('6433097e-487e-5516-a47b-481abfdcc891')
-light = VxExtensionFactory.create(key)
-app.add(light)
-
-# Scene
-
-step(100)
-
-scene = app.getSimulationFileManager().loadScene(STS, 'ContentExtensionScene')
-app.add(scene)
-
-# GTM
-gtm_holder = app.getSimulationFileManager().loadMechanism(GTM)
-gtm = gtm_holder.findExtension('GTM')
-gtm_content = gtm_holder.findExtension('GTM Content')
-gtm_content.getParameter('Mission File').setValue(SCENARIO)
-gtm.getOutput('Use Bomb Cart').setValue(True)
-gtm.getOutput('Use Trailer Chassis').setValue(False)
-
-cms = app.getSimulationFileManager().loadMechanism('A:/builds/PTLEN/assets/Stage/assets/Environment/Objects/ContainerManagementSystemDisplay/Physics/ContainerManagementSystemDisplay.vxm', 'CMS.Mechanism')
-
-invisibleDropZone1 = app.getSimulationFileManager().loadMechanism(DROP_ZONE, 'InvisibleDropZone1')
-invisibleDropZone2 = app.getSimulationFileManager().loadMechanism(DROP_ZONE, 'InvisibleDropZone2')
-invisibleDropZone3 = app.getSimulationFileManager().loadMechanism(DROP_ZONE, 'InvisibleDropZone3')
-invisibleDropZone4 = app.getSimulationFileManager().loadMechanism(DROP_ZONE, 'InvisibleDropZone4')
-'''
+    def scene_step(self, event=None):
+        '''Steps the scene the selected number of times. 
+        The soVx window will become unresponsive during this time.'''
+        steps = int(self.t_step_count.GetValue())
+        if steps is None:
+            while True:
+                self.Vx.sim_app.update()
+        else:
+            for i in range(0, steps):
+                self.Vx.sim_app.update()
 
 class WindowVx(WindowPanel):
     '''Exposed namespace to Pywrap. 
-    All helper functions should be located here and can be called with the soVx constructor.'''
+    All helper functions should be located here and can be called with the soVx.'''
     config = ''
     scene = ''
     gtm = ''
     scenario_json = ''
     mechanism = ''
     serializer = ''
-    lift_objects = ''
+    lift_objects = []
     truck = ''
     sim_app = VxSim.VxApplication()
-        
+      
     def __init__(self, *args, **kwargs):
         '''Create VxSim constants for contained functions.'''
+    
+    def vx_get_liftables(self, searchterm):
+        self.lift_objects
+        temp = []
+        i = 0
+    
+        while app.getContentDispatcher().getMechanism(i) != None:
+            x = app.getContentDispatcher().getMechanism(i)
+            temp.append(x.getName())
+            i += 1
 
-    def vx_step(self, event=None):
-        '''Steps the scene the selected number of times. 
-        The soVx window will become unresponsive during this time.'''
-        for i in range(0, 1000):
-            self.sim_app.update()
+        self.lift_objects = [ z for z, item in enumerate(temp) if re.search(searchterm, item)]
 
 class WindowFrame(wx.Frame):
 
@@ -212,14 +204,24 @@ class WindowFrame(wx.Frame):
         '''Main frame holding "WindowPanel".'''
         wx.Frame.__init__(self, *args, **kwargs)
 
-        MenuBar = wx.MenuBar()
-        FileMenu = wx.Menu()
+        menu_bar = wx.MenuBar()
+        file_menu = wx.Menu()
+        port_menu = wx.Menu()
 
-        item = FileMenu.Append(wx.ID_EXIT, text="&Quit")
-        self.Bind(wx.EVT_MENU, self.menu_quit, item)
+        construction_menu = wx.Menu()
+         
+        truck_submenu = wx.Menu()
+        truck_submenu.Append(wx.ID_ANY, 'Trailer Chassis', kind = wx.ITEM_CHECK)
+        truck_submenu.Append(wx.ID_ANY, 'Bomb Cart', kind = wx.ITEM_CHECK)
+        port_menu.AppendMenu(wx.ID_ANY, '&Truck Type', truck_submenu)
 
-        MenuBar.Append(FileMenu, "&File")
-        self.SetMenuBar(MenuBar)
+        quit = file_menu.Append(wx.ID_EXIT, text='&Quit')
+        self.Bind(wx.EVT_MENU, self.menu_quit, quit)
+
+        menu_bar.Append(file_menu, '&File')
+        menu_bar.Append(port_menu, '&Port')
+        menu_bar.Append(construction_menu, '&Construction')
+        self.SetMenuBar(menu_bar)
 
         self.Panel = WindowPanel(self)
 
@@ -235,7 +237,6 @@ class soVx_main(wx.App):
         return True
 
 def wrap(app):
-    wx.InitAllImageHandlers()
     frame = py.crust.CrustFrame()
     frame.SetSize((750, 525))
     frame.Show(True)
