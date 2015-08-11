@@ -3,6 +3,7 @@ import wx
 from wx import py
 import re
 import math
+import json
 import VxSim
 import pyvx
 
@@ -14,8 +15,9 @@ class WindowPanel(wx.Panel):
 
         self.Vx = WindowVx(self)
         self.parent = parent
-        self.current_directory = os.getcwd()
         self.truck_selection = ''
+        self.simulating = False
+        self.config_path = os.path.expanduser('~/soVx.json')
 
         # Labels
         self.l_config = wx.StaticText(self, size = (80, 25), label = 'Config')
@@ -30,31 +32,29 @@ class WindowPanel(wx.Panel):
         self.t_gtm = wx.TextCtrl(self, size = (400, 23))
         self.t_scenario = wx.TextCtrl(self, size = (400, 23))
         self.t_mechanism = wx.TextCtrl(self, size = (400, 23))
-        self.t_step_count = wx.TextCtrl(self, size = (40, 23))
         self.t_search_term = wx.TextCtrl(self, size = (100, 23))
         self.t_automate_end = wx.TextCtrl(self, size = (40, 23))
 
         # Buttons and bindings
         # TODO: Add tooltips and Error messages on incorrect input
         self.b_browse_config = wx.Button(self, label = '...', size = (20, 20))
-        self.b_browse_config.Bind(wx.EVT_BUTTON, self.browse_file)
+        self.b_browse_config.Bind(wx.EVT_BUTTON, self.browse_config)
 
         self.b_browse_scene = wx.Button(self, label = '...', size = (20, 20))
-        self.b_browse_scene.Bind(wx.EVT_BUTTON, self.browse_file)
-
+        self.b_browse_scene.Bind(wx.EVT_BUTTON, self.browse_scene)
         self.b_browse_gtm = wx.Button(self, label = '...', size = (20, 20))
-        self.b_browse_gtm.Bind(wx.EVT_BUTTON, self.browse_file)
+        self.b_browse_gtm.Bind(wx.EVT_BUTTON, self.browse_gtm)
 
         self.b_browse_scenario = wx.Button(self, label = '...', size = (20, 20))
-        self.b_browse_scenario.Bind(wx.EVT_BUTTON, self.browse_file)
+        self.b_browse_scenario.Bind(wx.EVT_BUTTON, self.browse_scenario)
 
         self.b_browse_mechanism = wx.Button(self, label = '...', size = (20, 20))
-        self.b_browse_mechanism.Bind(wx.EVT_BUTTON, self.browse_file)
+        self.b_browse_mechanism.Bind(wx.EVT_BUTTON, self.browse_mechanism)
 
         self.b_start = wx.Button(self, label = 'Load Scene')
         self.b_start.Bind(wx.EVT_BUTTON, self.file_loader)
 
-        self.b_step = wx.Button(self, label = 'Step')
+        self.b_step = wx.Button(self, label = 'Simulate')
         self.b_step.Bind(wx.EVT_BUTTON, self.scene_step)
 
         self.b_search = wx.Button(self, label = 'Search')
@@ -109,51 +109,80 @@ class WindowPanel(wx.Panel):
         hsizer6.Add(self.t_automate_end, 0, wx.ALIGN_CENTER|wx.ALL, 5)
 
         hsizer7.Add(self.b_step, 0, wx.ALIGN_CENTER|wx.ALL, 5)
-        hsizer7.Add(self.t_step_count, 0, wx.ALIGN_CENTER|wx.ALL, 5)
 
         hsizer8.Add(self.b_start, 0, wx.ALIGN_CENTER|wx.ALL, 5)
         
         # Load vertical sizer and all horizontal sizers it contains.
         self.SetSizerAndFit(vsizer)
-        
-    #def show_message_dlg(self, msg, title, style):
-    #    '''Opens a message dialog'''
-    #    dialog = wx.MessageDialog(parent=None, message=msg, 
-    #                           caption=title, style=style)
-    #    dialog.ShowModal()
-    #    dialog.Destroy()
+        self.load_cfg()
     
-    #def error_msg(self, event):
-    #    '''Warning message displayed when file of invalid type is selected'''
-    #    self.show_message_dlg('Please select a file of a valid type. These include: *.vxc, *.vxs, *.json, *.vxm.',
-    #                        'Filetype Error',
-    #                        wx.OK | wx.ICON_INFORMATION
-    #                        )
+    def save_cfg(self):
+        try:
+            d = {}
+            d['config'] = self.t_config.GetValue()
+            d['scene'] = self.t_scene.GetValue()
+            d['gtm'] = self.t_gtm.GetValue()
+            d['scenario'] = self.t_scenario.GetValue()
+            d['mechanism'] = self.t_mechanism.GetValue()
+            with open(self.config_path, 'w') as f:
+                json.dump(d, f)
+        except:
+           pass
+
+    def load_cfg(self):
+        try:
+            with open(self.config_path, 'r') as f:
+                d = json.load(f)
+                self.t_config.SetValue(d['config'])
+                self.t_scene.SetValue(d['scene'])
+                self.t_gtm.SetValue(d['gtm'])
+                self.t_scenario.SetValue(d['scenario'])
+                self.t_mechanism.SetValue(d['mechanism'])
+
+        except:
+            pass
+
+    def browse(self, txt, wildcard):
+        '''Opens a file browser in cwd.'''
+        path = None
+        if txt.GetValue():
+            path = os.path.split(txt.GetValue())[0]
+        if not path:
+            path = os.getcwd()
         
-    def browse_file(self, event):
-        '''Opens a file browser in cwd.
-            TODO: Add error message dialog that doesnt whine all the time.
-            TODO: Handle multiple files ending in .vxm (GTM and Mechanism). Get UUID of object.'''
-          
         dlg = wx.FileDialog(
                 self, message = 'Choose a file to load',
-                defaultDir = self.current_directory,
+                defaultDir = path,
                 defaultFile = '',
-                style = wx.OPEN | wx.MULTIPLE | wx.CHANGE_DIR
+                wildcard = wildcard,
+                style = wx.OPEN
                 )
         if dlg.ShowModal() == wx.ID_OK:
             paths = dlg.GetPaths()
-            for path in paths:
-                if str(path).endswith('.vxc'):
-                    self.t_config.SetValue(path)
-                if str(path).endswith('.vxs'):
-                    self.t_scene.SetValue(path)
-                if str(path).endswith('.vxm'):
-                    self.t_gtm.SetValue(path)
-                if str(path).endswith('.json'):
-                    self.t_scenario.SetValue(path)
-          
+            if paths:
+                txt.SetValue(paths[0])
+                    
         dlg.Destroy()
+
+    def browse_config(self, event):
+        self.browse(self.t_config, ('*.vxc'))
+        self.save_cfg()
+
+    def browse_scene(self, event):
+        self.browse(self.t_scene, ('*.vxs'))
+        self.save_cfg()
+
+    def browse_gtm(self, event):
+        self.browse(self.t_gtm, ('*.vxm'))
+        self.save_cfg()
+        
+    def browse_scenario(self, event):
+        self.browse(self.t_scenario, ('*.json'))
+        self.save_cfg()
+
+    def browse_mechanism(self, event):
+        self.browse(self.t_mechanism, ('*.vxm'))
+        self.save_cfg()
     
     def scene_setup(self):
         '''Additional scene setup
@@ -242,12 +271,16 @@ class WindowPanel(wx.Panel):
     def scene_step(self, event=None):
         '''Steps the scene the selected number of times. 
         The soVx window will become unresponsive during this time.'''
-        steps = int(self.t_step_count.GetValue())
-        if steps is None:
-            pass
+        print(self.simulating)
+        if self.simulating:
+            self.simulating = False
+            self.b_step.SetLabel('Simulate')
         else:
-            for i in range(0, steps):
+            self.simulating = True
+            self.b_step.SetLabel('Pause')
+            while self.simulating:
                 self.Vx.sim_app.update()
+                wx.Yield()
 
     def get_sceneObjects(self, event=None):
         '''Creates a list of scene objects and appends the to Vx.scene_objects.'''
