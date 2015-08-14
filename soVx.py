@@ -1,6 +1,7 @@
 import os
 import wx
 from wx import py
+import wx.lib.intctrl
 import re
 import math
 import json
@@ -17,6 +18,7 @@ class WindowPanel(wx.Panel):
         self.Vx = WindowVx(self)
         self.parent = parent
         self.truck_selection = ''
+        self.list_position = 0
         self.simulating = False
         self.config_path = os.path.expanduser('~/soVx.json')
 
@@ -27,14 +29,14 @@ class WindowPanel(wx.Panel):
         self.l_scenario = wx.StaticText(self, size = (80, 25), label = 'Scenario')
         self.l_mechanism = wx.StaticText(self, size = (80, 25), label = 'Mechanism')
 
-        # Textboxes
-        self.t_config = wx.TextCtrl(self, size = (400, 23), )
+        # Input boxes
+        self.t_config = wx.TextCtrl(self, size = (400, 23))
         self.t_scene = wx.TextCtrl(self, size = (400, 23))
         self.t_gtm = wx.TextCtrl(self, size = (400, 23))
         self.t_scenario = wx.TextCtrl(self, size = (400, 23))
         self.t_mechanism = wx.TextCtrl(self, size = (400, 23))
         self.t_search_term = wx.TextCtrl(self, size = (100, 23))
-        self.t_automate_end = wx.TextCtrl(self, size = (40, 23))
+        self.t_automate_end = wx.lib.intctrl.IntCtrl(self, size = (40, 23), min=0, max=None)
 
         # Buttons and bindings
         # TODO: Add tooltips and Error messages on incorrect input
@@ -190,20 +192,20 @@ class WindowPanel(wx.Panel):
            TODO: replace the junk in here with legitmate setup.'''
         try:
             self.Vx.invisibleDropZone1 = self.Vx.sim_app.getSimulationFileManager().loadMechanism(
-                'a:/builds/PTLEN/assets/STAGE/assets/Environment/Objects/InvisibleDropZone/Physics/InvisibleDropZone.vxm',
+                'a:/builds/PMA/assets/STAGE/assets/Environment/Objects/InvisibleDropZone/Physics/InvisibleDropZone.vxm',
                 'InvisibleDropZone1')
             self.Vx.invisibleDropZone2 = self.Vx.sim_app.getSimulationFileManager().loadMechanism(
-                'a:/builds/PTLEN/assets/STAGE/assets/Environment/Objects/InvisibleDropZone/Physics/InvisibleDropZone.vxm',
+                'a:/builds/PMA/assets/STAGE/assets/Environment/Objects/InvisibleDropZone/Physics/InvisibleDropZone.vxm',
                 'InvisibleDropZone2')
             self.Vx.invisibleDropZone3 = self.Vx.sim_app.getSimulationFileManager().loadMechanism(
-                'a:/builds/PTLEN/assets/STAGE/assets/Environment/Objects/InvisibleDropZone/Physics/InvisibleDropZone.vxm',
+                'a:/builds/PMA/assets/STAGE/assets/Environment/Objects/InvisibleDropZone/Physics/InvisibleDropZone.vxm',
                 'InvisibleDropZone3')
             self.Vx.invisibleDropZone4 = self.Vx.sim_app.getSimulationFileManager().loadMechanism(
-                'a:/builds/PTLEN/assets/STAGE/assets/Environment/Objects/InvisibleDropZone/Physics/InvisibleDropZone.vxm',
+                'a:/builds/PMA/assets/STAGE/assets/Environment/Objects/InvisibleDropZone/Physics/InvisibleDropZone.vxm',
                 'InvisibleDropZone4')
       
             self.Vx.cms = self.Vx.sim_app.getSimulationFileManager().loadMechanism(
-                'A:/builds/PTLEN/assets/Stage/assets/Environment/Objects/ContainerManagementSystemDisplay/Physics/ContainerManagementSystemDisplay.vxm',
+                'A:/builds/PMA/assets/Stage/assets/Environment/Objects/ContainerManagementSystemDisplay/Physics/ContainerManagementSystemDisplay.vxm',
                 'CMS.Mechanism')
         except:
             pass
@@ -316,23 +318,16 @@ class WindowPanel(wx.Panel):
             i += 1
 
         self.Vx.lift_objects = [ z for z, item in enumerate(temp) if re.search(searchterm, item)]
+        self.t_automate_end.SetMin(0)
+        self.t_automate_end.SetMax(len(self.Vx.lift_objects))
 
     def truck_position(self):
-        if self.truck_selection in ('BombCart'):
-            self.truck_x = self.Vx.truck.findExtension('Bomb_Cart').getInput('Position').toVector3().toPyVxVector().x
-            self.truck_y = self.Vx.truck.findExtension('Bomb_Cart').getInput('Position').toVector3().toPyVxVector().y
-            self.truck_z = self.Vx.truck.findExtension('Bomb_Cart').getInput('Position').toVector3().toPyVxVector().z
-            self.trans_truck = VxSim.VxTransform().makeRotationFromEulerAngles(VxSim.VxEulerAngles(0, 0, 90 * math.pi / 180))\
-            * VxSim.VxTransform().makeTranslation(pyvx.Vector(self.truck_x, self.truck_y, self.truck_z + 2.0))
-        if self.truck_selection in ('Chassis'):
-            self.truck_x = self.Vx.truck.findExtension('Chassis').getInput('Position').toVector3().toPyVxVector().x
-            self.truck_y = self.Vx.truck.findExtension('Chassis').getInput('Position').toVector3().toPyVxVector().y
-            self.truck_z = self.Vx.truck.findExtension('Chassis').getInput('Position').toVector3().toPyVxVector().z
-            self.trans_truck = VxSim.VxTransform().makeRotationFromEulerAngles(VxSim.VxEulerAngles(0, 0, 90 * math.pi / 180))\
-            * VxSim.VxTransform().makeTranslation(pyvx.Vector(self.truck_x, self.truck_y, self.truck_z + 2.0))
-        else:
-            pass
-    
+        truck = self.truck_selection
+        truck_x = self.Vx.truck.findExtension(truck).getInput('Position').toVector3().toPyVxVector().x
+        truck_y = self.Vx.truck.findExtension(truck).getInput('Position').toVector3().toPyVxVector().y
+        truck_z = self.Vx.truck.findExtension(truck).getInput('Position').toVector3().toPyVxVector().z
+        return (truck_x, truck_y, truck_z)
+        
     def do(self, it, timeout):
         start = time.clock()
         while not it():
@@ -355,39 +350,37 @@ class WindowPanel(wx.Panel):
         '''Iterate through Vx.lift_objects list and apply the transform to the truck position.
         TODO: Create a while that can handle multiple truck positions.'''
         
-        self.truck_position()
-        original_position = (abs(self.truck_x), abs(self.truck_y), abs(self.truck_z))
-        
-        def current_position():
-            return (abs(self.truck_x), abs(self.truck_y), abs(self.truck_z))
+        original_position = self.truck_position()
+        print('{0}\n{1}\n{2}').format(original_position[0], original_position[1], original_position[2])
 
-        for i in range(int(self.t_automate_end.GetValue())):
+        teleport = VxSim.VxTransform().makeRotationFromEulerAngles(VxSim.VxEulerAngles(0, 0, 90 * math.pi / 180))\
+            * VxSim.VxTransform().makeTranslation(pyvx.Vector(original_position[0], original_position[1], original_position[2] + 2.5))
+
+        
+        for i in range(self.list_position, int(self.t_automate_end.GetValue())):
 
             print ('Moving container {0} of {1}').format(i + 1, int(self.t_automate_end.GetValue()))
-            
-            self.truck_position()
-            print ('original: {0}\ncurrent: {1}').format(original_position[1], current_position()[1])
         
             def arrived():
-                return int(current_position()[1]) < int(original_position[1]) * 1.05 and int(current_position()[1]) > int(original_position[1]) * .95
+                current_position = self.truck_position()[1]
+                return abs(int(current_position)) < abs(int(original_position[1])) * 1.01 and abs(int(current_position)) > abs(int(original_position[1])) * .99
                 
             def move():
+                self.Vx.sim_app.getContentDispatcher().getMechanism(self.Vx.lift_objects[i]).setTransform(teleport)
                 self.Vx.sim_app.getContentDispatcher().getMechanism(self.Vx.lift_objects[i]).findInterface('Liftable').getInput('Enable Attachment').setValue(False)
-                self.Vx.sim_app.getContentDispatcher().getMechanism(self.Vx.lift_objects[i]).setTransform(self.trans_truck)
-                del self.Vx.lift_objects[i]
+                self.t_automate_end.SetMin(i + 2)
                 return True
         
             def leave():
-                return int(current_position()[1]) > int(original_position[1]) * 1.05 or int(current_position()[1]) < int(original_position[1]) * .95
+                current_position = self.truck_position()[1]
+                return not abs(int(current_position)) < abs(int(original_position[1])) * 1.01 and abs(int(current_position)) > abs(int(original_position[1])) * .99
             
-            if not self.do_sequence(((arrived, 30), (move, None), (leave, 15))):
+            if not self.do_sequence(((arrived, 45), (move, None), (leave, 10))):
                 print('Error moving container {0} of {1}').format(i + 1, int(self.t_automate_end.GetValue()))
-                break             
-                
-        #print('Error moving container number {0}. The truck did not arrive within 30 seconds.').format(i + 1)
-        #return False
-        #print('Error moving container number {0}. The truck did leave with the container within 5 seconds.').format(i + 1)
-        #return False
+                print('original: {0}\ncurrent: {1}').format(original_position[1], self.truck_position()[1])
+                break
+            
+            self.list_position += 1             
                     
 class WindowVx(WindowPanel):
     '''Exposed namespace to Pywrap. 
@@ -448,7 +441,7 @@ class WindowFrame(wx.Frame):
             self.Panel.truck_selection = 'Chassis'
         if self.truck_bombCart.IsChecked():
             #self.truck_chassis.SetValue(False)
-            self.Panel.truck_selection = 'BombCart'
+            self.Panel.truck_selection = 'Bomb_Cart'
 
 class soVx_main(wx.App):
     '''wx.APP instance to be wrapped by pyCrust.'''
